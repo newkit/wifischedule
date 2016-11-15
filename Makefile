@@ -24,9 +24,10 @@ PKG_MAINTAINER:=Nils Koenig <openwrt@newk.it>
 include $(INCLUDE_DIR)/package.mk
 
 define Package/wifischedule
-  SECTION:=wireless
+  SUBMENU:=wireless
+  TITLE:=Turns WiFi on and off according to a schedule
+  SECTION:=net
   CATEGORY:=Network
-  TITLE:==Turns WiFi on and off according to a schedule defined in UCI
 endef
 
 define Package/wifischedule/description
