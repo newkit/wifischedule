@@ -14,6 +14,9 @@
 #
 # Author: Nils Koenig <openwrt@newk.it>
 
+#set -x
+set -o pipefail
+
 SCRIPT=$0
 LOCKFILE=/tmp/wifi_schedule.lock
 LOGFILE=/tmp/log/wifi_schedule.log
@@ -32,7 +35,6 @@ _log()
 _exit()
 {
     local rc=$1
-    lock -u ${LOCKFILE}
     exit ${rc}
 }
 
@@ -122,6 +124,42 @@ _enable_wifi_schedule()
     return 0
 }
 
+_is_earlier()
+{
+    local hhmm=$1
+    local ret=1
+    if [[ $(date +%H) -lt ${hhmm:0:2} ]]
+    then
+        ret=0
+    fi
+    if [[ $(date +%H) -eq ${hhmm:0:2} && $(date +%M) -lt ${hhmm:3:4} ]]
+    then
+        ret=0
+    fi
+    echo $ret
+}
+
+_check_startup_timewindow()
+{
+    local entry=$1
+    local starttime
+    local stoptime
+    local dow
+    starttime=$(_get_uci_value ${PACKAGE}.${entry}.starttime) || _exit 1
+    stoptime=$(_get_uci_value ${PACKAGE}.${entry}.stoptime) || _exit 1
+    dow=$(_get_uci_value_raw ${PACKAGE}.${entry}.daysofweek) || _exit 1
+
+    echo $dow | grep $(date +%A) > /dev/null 2>&1
+    rc=$?
+
+    if [[ $rc -eq 0 && $(date +%H) -ge ${starttime:0:2}  && $(date +%M) -ge ${starttime:3:4}  && $(_is_earlier $stoptime) -eq 0  ]]
+    then
+        echo 0
+    else
+        echo 1
+    fi
+}
+
 _get_wireless_interfaces()
 {
     local n=$(cat /proc/net/wireless | wc -l)
@@ -142,7 +180,7 @@ get_module_list()
     echo $mod_list | tr ',' ' '
 }
 
-save_module_list_uci()
+_save_module_list_uci()
 {
     local list=$(get_module_list)
     uci set ${GLOBAL}.modules="${list}"
@@ -218,6 +256,32 @@ _create_cron_entries()
     done
 }
 
+startup()
+{
+    _log "startup"
+    local enable_wifi=0
+    local entries=$(uci show ${PACKAGE} 2> /dev/null | awk -F'.' '{print $2}' | grep -v '=' | grep -v '@global\[0\]' | uniq | sort)
+    local _entry
+    for _entry in ${entries}
+    do
+        local status
+        status=$(_get_uci_value ${PACKAGE}.${_entry}.enabled) || _exit 1
+        if [ ${status} -eq 1 ]
+        then
+            enable_wifi=$(_check_startup_timewindow $_entry)
+        fi
+    done
+
+    if [[ $enable_wifi -eq 0 ]]
+    then
+        _log "enable wifi"
+        enable_wifi
+    else 
+        _log "disable wifi"
+        disable_wifi
+    fi
+}
+
 check_cron_status()
 {
     local global_enabled
@@ -231,7 +295,8 @@ check_cron_status()
 disable_wifi()
 {
     _rm_cron_script "${SCRIPT} recheck"
-    /sbin/wifi down
+    #/sbin/wifi down
+    _set_status_wifi_uci 1
     local unload_modules
     unload_modules=$(_get_uci_value_raw ${GLOBAL}.unload_modules) || _exit 1
     if [[ "${unload_modules}" == "1" ]]; then
@@ -271,6 +336,17 @@ soft_disable_wifi()
     fi
 }
 
+_set_status_wifi_uci()
+{
+    local status=$1
+    local radios=$(uci show wireless | grep radio | awk -F'.' '{print $2}' | grep -v '[=|@]' | sort | uniq)
+    for radio in ${radios}
+    do
+        uci set wireless.${radio}.disabled=${status}
+    done
+    uci commit
+}
+
 enable_wifi()
 {
     _rm_cron_script "${SCRIPT} recheck"
@@ -279,15 +355,14 @@ enable_wifi()
     if [[ "${unload_modules}" == "1" ]]; then
         _load_modules
     fi
+    _set_status_wifi_uci 0
     /sbin/wifi
 }
 
 usage()
 {
     echo ""
-    echo "$0 cron|start|stop|forcestop|recheck|getmodules|savemodules|help"
-    echo ""
-    echo "    UCI Config File: /etc/config/${PACKAGE}"
+    echo "$0 cron|start|stop|forcestop|recheck|getmodules|help"
     echo ""
     echo "    cron: Create cronjob entries."
     echo "    start: Start wifi."
@@ -295,27 +370,36 @@ usage()
     echo "    forcestop: Stop wifi immediately."
     echo "    recheck: Recheck if wifi can be disabled now."
     echo "    getmodules: Returns a list of modules used by the wireless driver(s)"
-    echo "    savemodules: Saves a list of automatic determined modules to UCI"
     echo "    help: This description."
     echo ""
+}
+
+_cleanup()
+{
+    lock -u ${LOCKFILE}
+    rm ${LOCKFILE}
 }
 
 ###############################################################################
 # MAIN
 ###############################################################################
+trap _cleanup EXIT
+
 LOGGING=$(_get_uci_value ${GLOBAL}.logging) || _exit 1
-_log ${SCRIPT} $1 $2
+_log ${SCRIPT} $1
 lock ${LOCKFILE}
 
 case "$1" in
-    cron) check_cron_status ;;
+    cron) 
+        check_cron_status
+        startup
+    ;;
     start) enable_wifi ;;
     forcestop) disable_wifi ;;
     stop) soft_disable_wifi ;;
     recheck) soft_disable_wifi ;;
     getmodules) get_module_list ;;
-    savemodules) save_module_list_uci ;;
-    help|--help|-h|*) usage ;;
+    help|--help|-h) usage ;;
 esac
 
 _exit 0
