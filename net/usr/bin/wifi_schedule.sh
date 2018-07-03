@@ -362,10 +362,11 @@ enable_wifi()
 usage()
 {
     echo ""
-    echo "$0 cron|start|stop|forcestop|recheck|getmodules|help"
+    echo "$0 cron|start|startup|stop|forcestop|recheck|getmodules|help"
     echo ""
     echo "    cron: Create cronjob entries."
     echo "    start: Start wifi."
+    echo "    startup: Checks current timewindow and enables/disables WIFI accordingly."
     echo "    stop: Stop wifi gracefully, i.e. check if there are stations associated and if so keep retrying."
     echo "    forcestop: Stop wifi immediately."
     echo "    recheck: Recheck if wifi can be disabled now."
