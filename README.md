@@ -73,7 +73,7 @@ Then call the script as follows in order to get the necessary cron jobs created:
 All commands:
  
 ```
-wifi_schedule.sh cron|start|startup|stop|forcestop|recheck|getmodules|savemodules|help
+wifi_schedule.sh cron|start|startup|stop|forcestop|recheck|getmodules|help
 
     cron: Create cronjob entries.
     start: Start wifi.
@@ -82,7 +82,6 @@ wifi_schedule.sh cron|start|startup|stop|forcestop|recheck|getmodules|savemodule
     forcestop: Stop wifi immediately.
     recheck: Recheck if wifi can be disabled now.
     getmodules: Returns a list of modules used by the wireless driver(s)
-    savemodules: Saves a list of automatic determined modules to UCI
     help: This description.
 ```
 
