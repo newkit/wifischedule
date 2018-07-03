@@ -46,6 +46,18 @@ define Package/wifischedule/install
 	$(INSTALL_BIN) ./net/usr/bin/wifi_schedule.sh $(1)/usr/bin/wifi_schedule.sh
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DATA) ./net/etc/config/wifi_schedule $(1)/etc/config/wifi_schedule
+	$(INSTALL_DIR) $(1)/etc/init.d
+	$(INSTALL_DATA) ./net/etc/init.d/wifi_schedule $(1)/etc/init.d/wifi_schedule
+endef
+
+define Package/wifischedule/postinst
+#!/bin/sh
+# check if we are on real system
+if [ -z "$${IPKG_INSTROOT}" ]; then
+	echo "Enabling rc.d symlink for wifirelay"
+	/etc/init.d/wifi_schedule enable
+fi
+exit 0
 endef
 
 $(eval $(call BuildPackage,wifischedule))

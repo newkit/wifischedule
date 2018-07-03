@@ -395,6 +395,7 @@ case "$1" in
         startup
     ;;
     start) enable_wifi ;;
+    startup) startup ;;
     forcestop) disable_wifi ;;
     stop) soft_disable_wifi ;;
     recheck) soft_disable_wifi ;;
