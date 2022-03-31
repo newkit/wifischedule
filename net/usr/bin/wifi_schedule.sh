@@ -139,6 +139,7 @@ _is_earlier()
     echo $ret
 }
 
+# returns 0 if now() is in $entry
 _check_startup_timewindow()
 {
     local entry=$1
@@ -256,9 +257,9 @@ _create_cron_entries()
     done
 }
 
-startup()
+_should_wifi_enabled() 
 {
-    _log "startup"
+
     local enable_wifi=0
     local entries=$(uci show ${PACKAGE} 2> /dev/null | awk -F'.' '{print $2}' | grep -v '=' | grep -v '@global\[0\]' | uniq | sort)
     local _entry
@@ -271,8 +272,14 @@ startup()
             enable_wifi=$(_check_startup_timewindow $_entry)
         fi
     done
+    echo ${enable_wifi}
+}
 
-    if [[ $enable_wifi -eq 0 ]]
+startup()
+{
+    _log "startup"
+    local _enable_wifi=$(_should_wifi_enabled)
+    if [[ ${_enable_wifi} -eq 0 ]]
     then
         _log "enable wifi"
         enable_wifi
@@ -295,7 +302,6 @@ check_cron_status()
 disable_wifi()
 {
     _rm_cron_script "${SCRIPT} recheck"
-    #/sbin/wifi down
     _set_status_wifi_uci 1
     local unload_modules
     unload_modules=$(_get_uci_value_raw ${GLOBAL}.unload_modules) || _exit 1
@@ -306,7 +312,7 @@ disable_wifi()
 
 soft_disable_wifi()
 {
-    local _disable_wifi=1
+    local _disable_wifi=0 #0: disable wifi, 1: do not disable wifi
     local iwinfo=/usr/bin/iwinfo
     if [ ! -e ${iwinfo} ]; then
         _log "${iwinfo} not available, skipping"
@@ -326,14 +332,18 @@ soft_disable_wifi()
         fi
 
         if [ -n "${stations}" ]; then
-            _disable_wifi=0
+            _disable_wifi=1
             _log "Station(s) $(echo ${stations}) associated on ${_if}"
         fi
     done
 
-    if [ ${_disable_wifi} -eq 1 ]; then
+    local _wifi_enabled=$(_should_wifi_enabled)
+    if [ ${_disable_wifi} -eq 0 && ${_wifi_enabled} -eq 1  ]; then
         _log "No stations associated, disable wifi."
         disable_wifi
+    elif [ ${_disable_wifi} -eq 0 && ${_wifi_enabled} -eq 0  ]; then
+        _log("Do not disable wifi since there is an allow timeframe, skip rechecking.")
+        _rm_cron_script "${SCRIPT} recheck"
     else
         _log "Could not disable wifi due to associated stations, retrying..."
         local recheck_interval=$(_get_uci_value ${GLOBAL}.recheck_interval)
