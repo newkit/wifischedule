@@ -342,7 +342,7 @@ soft_disable_wifi()
         _log "No stations associated, disable wifi."
         disable_wifi
     elif [ ${_disable_wifi} -eq 0 && ${_wifi_enabled} -eq 0  ]; then
-        _log("Do not disable wifi since there is an allow timeframe, skip rechecking.")
+        _log "Do not disable wifi since there is an allow timeframe, skip rechecking."
         _rm_cron_script "${SCRIPT} recheck"
     else
         _log "Could not disable wifi due to associated stations, retrying..."
