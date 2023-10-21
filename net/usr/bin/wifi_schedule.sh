@@ -163,8 +163,7 @@ _check_startup_timewindow()
 
 _get_wireless_interfaces()
 {
-    local n=$(cat /proc/net/wireless | wc -l)
-    cat /proc/net/wireless | tail -n $(($n - 2))|awk -F':' '{print $1}'| sed  's/ //' 
+    iwinfo | grep ESSID | cut -f 1 -s -d" "
 }
 
 
