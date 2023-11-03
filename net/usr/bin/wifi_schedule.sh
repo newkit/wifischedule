@@ -14,7 +14,6 @@
 #
 # Author: Nils Koenig <openwrt@newk.it>
 
-#set -x
 set -o pipefail
 
 SCRIPT=$0
@@ -35,6 +34,7 @@ _log()
 _exit()
 {
     local rc=$1
+    lock -u ${LOCKFILE}
     exit ${rc}
 }
 
@@ -376,7 +376,9 @@ enable_wifi()
 usage()
 {
     echo ""
-    echo "$0 cron|start|startup|stop|forcestop|recheck|getmodules|help"
+    echo "$0 cron|start|startup|stop|forcestop|recheck|getmodules|savemodules|help"
+    echo ""
+    echo "    UCI Config File: /etc/config/${PACKAGE}"
     echo ""
     echo "    cron: Create cronjob entries."
     echo "    start: Start wifi."
@@ -385,6 +387,7 @@ usage()
     echo "    forcestop: Stop wifi immediately."
     echo "    recheck: Recheck if wifi can be disabled now."
     echo "    getmodules: Returns a list of modules used by the wireless driver(s)"
+    echo "    savemodules: Saves a list of automatic determined modules to UCI"
     echo "    help: This description."
     echo ""
 }
@@ -401,7 +404,7 @@ _cleanup()
 trap _cleanup EXIT
 
 LOGGING=$(_get_uci_value ${GLOBAL}.logging) || _exit 1
-_log ${SCRIPT} $1
+_log ${SCRIPT} $1 $2
 lock ${LOCKFILE}
 
 case "$1" in
@@ -415,7 +418,8 @@ case "$1" in
     stop) soft_disable_wifi ;;
     recheck) soft_disable_wifi ;;
     getmodules) get_module_list ;;
-    help|--help|-h) usage ;;
+    savemodules) save_module_list_uci ;;
+    help|--help|-h|*) usage ;;
 esac
 
 _exit 0
