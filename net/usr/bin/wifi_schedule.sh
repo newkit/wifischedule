@@ -180,7 +180,7 @@ get_module_list()
     echo $mod_list | tr ',' ' '
 }
 
-_save_module_list_uci()
+save_module_list_uci()
 {
     local list=$(get_module_list)
     uci set ${GLOBAL}.modules="${list}"
