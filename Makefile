@@ -61,7 +61,7 @@ define Package/wifischedule/postinst
 #!/bin/sh
 # check if we are on real system
 if [ -z "$${IPKG_INSTROOT}" ]; then
-	echo "Enabling rc.d symlink for wifirelay"
+	echo "Enabling rc.d symlink for wifischedule"
 	/etc/init.d/wifi_schedule enable
 fi
 exit 0
